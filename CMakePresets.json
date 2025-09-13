@@ -1,0 +1,57 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "debug",
+            "displayName": "x64-Debug",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/cmake-build-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_CXX_STANDARD": "26",
+                "CMAKE_CXX_FLAGS": "/std:c++latest /ZI",
+                "MOLE_BUILD_TESTS": "ON"
+            },
+            "vendor": {
+                "microsoft.com/VisualStudioSettings/CMake/1.0": {
+                    "intelliSenseMode": "windows-msvc-x64",
+                    "enableMicrosoftCodeAnalysis": false,
+                    "enableClangTidyCodeAnalysis": false
+                }
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "x64-Release",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/cmake-build-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_CXX_STANDARD": "26",
+                "CMAKE_CXX_FLAGS": "/std:c++latest",
+                "MOLE_BUILD_TESTS": "OFF"
+            },
+            "vendor": {
+                "microsoft.com/VisualStudioSettings/CMake/1.0": {
+                    "intelliSenseMode": "windows-msvc-x64",
+                    "enableMicrosoftCodeAnalysis": false,
+                    "enableClangTidyCodeAnalysis": false
+                }
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug-build",
+            "configurePreset": "debug",
+            "jobs": 14,
+            "verbose": true
+        },
+        {
+            "name": "release-build",
+            "configurePreset": "release",
+            "jobs": 14,
+            "verbose": true
+        }
+    ]
+}
