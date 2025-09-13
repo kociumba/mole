@@ -1,19 +1,11 @@
 #ifndef MOLE_H
 #define MOLE_H
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include <common.h>
 
 #include <MinHook.h>
 #include <dbghelp.h>
 #include <psapi.h>
-
-#include <atomic>
-#include <mutex>
-#include <print>
-#include <ranges>
-#include <sstream>
-#include <unordered_map>
 
 #include "commands/commands.h"
 #include "g_flags/flags.h"

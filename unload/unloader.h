@@ -1,8 +1,7 @@
 #ifndef UNLOADER_H
 #define UNLOADER_H
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include <common.h>
 
 #include "../g_flags/flags.h"
 #include "../threads/threads.h"

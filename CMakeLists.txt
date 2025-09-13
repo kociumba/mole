@@ -54,8 +54,14 @@ add_library(mole MODULE main.cpp
         unload/unloader.cpp
         unload/unloader.h
         memory/resolve_symbol.cpp
-        memory/resolve_symbol.h "host/host.h" "host/host.cpp" "commands/commands.h" "commands/commands.cpp")
+        memory/resolve_symbol.h 
+        host/host.h 
+        host/host.cpp 
+        commands/commands.h 
+        commands/commands.cpp 
+        aggregate/common.h)
 target_link_libraries(mole spdlog::spdlog minhook Dbghelp.lib)
+include_directories(aggregate)
 
 if (MOLE_TEST_ENABLED)
     file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.cpp")

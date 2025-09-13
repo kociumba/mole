@@ -1,20 +1,14 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
+#include <common.h>
+
 #include <MinHook.h>
 #include <psapi.h>
-#include <algorithm>
-#include <atomic>
+
 #include <ranges>
 #include <shared_mutex>
-#include <string>
-#include <unordered_map>
-#include <vector>
 #include "../g_flags/flags.h"
-
-using std::atomic;
-using std::string;
-using std::vector;
 
 constexpr size_t EVENT_BUFFER_SIZE = 1 << 16;
 constexpr size_t MAX_FRAMES = 64;
@@ -39,7 +33,7 @@ struct AllocEvent {
 struct ModuleInfoCache {
     uintptr_t base;
     size_t size;
-    std::string name;
+    string name;
 };
 
 ModuleInfoCache get_module_for_address(void* addr);
@@ -49,15 +43,15 @@ inline bool address_in_module(void* addr, const ModuleInfoCache& mi) {
     return p >= mi.base && p < mi.base + mi.size;
 }
 
-extern std::unordered_map<uintptr_t, ModuleInfoCache> g_module_cache;
+extern unordered_map<uintptr_t, ModuleInfoCache> g_module_cache;
 extern std::shared_mutex g_module_cache_mutex;
 
 extern AllocEvent g_events[EVENT_BUFFER_SIZE];
-extern std::atomic<size_t> g_write_index;
-extern std::atomic<size_t> g_read_index;
-extern std::atomic<size_t> g_dropped;
+extern atomic<size_t> g_write_index;
+extern atomic<size_t> g_read_index;
+extern atomic<size_t> g_dropped;
 
-extern std::vector<std::pair<uintptr_t, size_t>> g_runtime_modules;
+extern vector<std::pair<uintptr_t, size_t>> g_runtime_modules;
 
 inline void push_event(AllocEvent ev) {
     if (g_write_index.load(std::memory_order_acquire) -

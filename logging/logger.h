@@ -1,15 +1,11 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include <common.h>
 
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #include <iostream>
-#include <string>
-
-using std::string;
 
 template <typename... Args>
 void trace(spdlog::format_string_t<Args...> fmt, Args&&... args) {
