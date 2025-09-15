@@ -70,6 +70,15 @@ inline bool is_mole_address(void* addr) {
     return (p >= g_mole_base && p < g_mole_base + g_mole_size);
 }
 
+inline bool is_mole_event(const AllocEvent& ev) {
+    for (USHORT i = 0; i < ev.frame_count; ++i) {
+        if (is_mole_address(ev.stack[i])) return true;
+    }
+    return false;
+}
+
+bool should_ignore(const AllocEvent& ev);
+
 void init_runtime_modules();
 
 void* __cdecl mole_malloc(size_t size);

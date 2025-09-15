@@ -37,7 +37,7 @@ void init_runtime_modules() {
 ModuleInfoCache get_module_for_address(void* addr) {
     uintptr_t p = reinterpret_cast<uintptr_t>(addr);
 
-    std::shared_lock read_lock(g_module_cache_mutex);
+    std::shared_lock read_write_lock(g_module_cache_mutex);
     for (const auto& [base, mi] : g_module_cache) {
         if (p >= mi.base && p < mi.base + mi.size) return mi;
     }
@@ -69,7 +69,6 @@ ModuleInfoCache get_module_for_address(void* addr) {
         mi.name = "<unknown>";
     }
 
-    std::unique_lock write_lock(g_module_cache_mutex);
     if (mi.base != 0) g_module_cache[mi.base] = mi;
 
     return mi;
@@ -99,17 +98,13 @@ bool is_addr_runtime(void* addr) {
 }
 
 bool should_ignore(const AllocEvent& ev) {
+    if (!g_filter_runtime_leaks) return false;
     if (ev.frame_count == 0) return false;
 
     int last_runtime_idx = -1;
     for (USHORT i = 0; i < ev.frame_count; ++i) {
-        if (is_mole_address(ev.stack[i])) {
-            return true;
-        }
         if (is_addr_runtime(ev.stack[i])) {
             last_runtime_idx = static_cast<int>(i);
-        } else {
-            continue;
         }
     }
 
@@ -122,7 +117,6 @@ bool should_ignore(const AllocEvent& ev) {
     }
 
     void* candidate = ev.stack[last_runtime_idx + 1];
-    if (is_mole_address(candidate)) return true;
     if (is_addr_runtime(candidate)) return true;
 
     return false;
@@ -139,7 +133,7 @@ void* __cdecl mole_malloc(size_t size) {
         ev.timestamp = GetTickCount64();
         ev.frame_count = RtlCaptureStackBackTrace(2, MAX_FRAMES, ev.stack, &ev.backtrace_hash);
 
-        if (!should_ignore(ev)) {
+        if (!is_mole_event(ev)) {
             push_event(ev);
         }
     }
@@ -156,7 +150,7 @@ void __cdecl mole_free(void* ptr) {
         ev.timestamp = GetTickCount64();
         ev.frame_count = RtlCaptureStackBackTrace(2, MAX_FRAMES, ev.stack, &ev.backtrace_hash);
 
-        if (!should_ignore(ev)) {
+        if (!is_mole_event(ev)) {
             push_event(ev);
         }
     }

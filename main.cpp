@@ -20,6 +20,8 @@ void print_leaks(const bool& verbose) {
 
     size_t total_leaked = 0, total_count = 0;
     for (const auto& ev : g_allocs | std::views::values) {
+        if (should_ignore(ev)) continue;
+
         auto& group = leak_groups[ev.backtrace_hash];
         group.count++;
         group.total_size += ev.size;
@@ -53,6 +55,7 @@ void print_leaks(const bool& verbose) {
 
 void _main(void* _) {
     set_console_style();
+    info("loaded mole on thread {}", GetCurrentThreadId());
 
     string line;
 

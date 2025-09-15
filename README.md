@@ -2,7 +2,7 @@
 
 **WIP** - mole is a work in progress debugging utility.
 
-mole enables custom tracking of memory allocations by hooking malloc and free functions upon loading the Mole DLL. While the core hooking functionality works, there are limitations when using a DLL:
+mole enables custom tracking of memory allocations by hooking `malloc`/`free` upon loading the mole DLL. While the core hooking functionality works, there are limitations when using a DLL:
 
 - Without a specialized injector, mole cannot capture the start and end of the target process, making it suitable primarily for applications like games.
 - Long-standing allocations from the Windows runtime are filtered to avoid being misreported as memory leaks.
