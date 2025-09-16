@@ -8,8 +8,9 @@ if (MSVC)
 endif ()
 
 option(CMAKE_MOLE_TEST "Build tests for mole" OFF)
+option(CMAKE_BUILD_MOLE_UI "Build the external interface for mole" ON)
 
-if (DEFINED MOLE_BUILD_TESTS)
+if (CMAKE_MOLE_TEST)
     set(MOLE_TEST_ENABLED ${MOLE_BUILD_TESTS})
 else ()
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -42,29 +43,39 @@ FetchContent_Declare(
         SYSTEM)
 FetchContent_MakeAvailable(minhook)
 
-add_library(mole MODULE main.cpp
-        logging/logger.cpp
-        logging/logger.h
-        threads/threads.cpp
-        threads/threads.h
-        g_flags/flags.h
-        g_flags/flags.cpp
-        hooks/memory.cpp
-        hooks/memory.h
-        unload/unloader.cpp
-        unload/unloader.h
-        memory/resolve_symbol.cpp
-        memory/resolve_symbol.h 
-        host/host.h 
-        host/host.cpp 
-        commands/commands.h 
-        commands/commands.cpp 
-        aggregate/common.h)
+add_library(mole MODULE mole/main.cpp
+        mole/logging/logger.cpp
+        mole/logging/logger.h
+        mole/threads/threads.cpp
+        mole/threads/threads.h
+        mole/g_flags/flags.h
+        mole/g_flags/flags.cpp
+        mole/hooks/memory.cpp
+        mole/hooks/memory.h
+        mole/unload/unloader.cpp
+        mole/unload/unloader.h
+        mole/memory/resolve_symbol.cpp
+        mole/memory/resolve_symbol.h
+        mole/host/host.h
+        mole/host/host.cpp
+        mole/commands/commands.h
+        mole/commands/commands.cpp
+        mole/aggregate/common.h
+        mole/ipc/server.h
+        mole/ipc/server.cpp)
 target_link_libraries(mole spdlog::spdlog minhook Dbghelp.lib)
-include_directories(aggregate)
+target_include_directories(mole PUBLIC mole/aggregate)
+if (MSVC)
+    target_compile_options(mole PUBLIC /EHs-)
+endif ()
+
+if (CMAKE_BUILD_MOLE_UI)
+    message(STATUS "configuring the build for mole mole_ui")
+    add_subdirectory(mole_ui)
+endif ()
 
 if (MOLE_TEST_ENABLED)
-    file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.cpp")
+    file(GLOB TEST_SOURCES CONFIGURE_DEPENDS " ${CMAKE_SOURCE_DIR}/mole/tests/*.cpp")
 
     foreach (TEST_SRC ${TEST_SOURCES})
         get_filename_component(TEST_NAME ${TEST_SRC} NAME_WE)

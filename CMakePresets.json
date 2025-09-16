@@ -1,57 +1,107 @@
 {
-    "version": 3,
-    "configurePresets": [
-        {
-            "name": "debug",
-            "displayName": "x64-Debug",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/cmake-build-debug",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_CXX_STANDARD": "26",
-                "CMAKE_CXX_FLAGS": "/std:c++latest /ZI",
-                "MOLE_BUILD_TESTS": "ON"
-            },
-            "vendor": {
-                "microsoft.com/VisualStudioSettings/CMake/1.0": {
-                    "intelliSenseMode": "windows-msvc-x64",
-                    "enableMicrosoftCodeAnalysis": false,
-                    "enableClangTidyCodeAnalysis": false
-                }
-            }
-        },
-        {
-            "name": "release",
-            "displayName": "x64-Release",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/cmake-build-release",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_CXX_STANDARD": "26",
-                "CMAKE_CXX_FLAGS": "/std:c++latest",
-                "MOLE_BUILD_TESTS": "OFF"
-            },
-            "vendor": {
-                "microsoft.com/VisualStudioSettings/CMake/1.0": {
-                    "intelliSenseMode": "windows-msvc-x64",
-                    "enableMicrosoftCodeAnalysis": false,
-                    "enableClangTidyCodeAnalysis": false
-                }
-            }
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "base-debug",
+      "displayName": "x64-Debug Base",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/cmake-build-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_STANDARD": "26",
+        "CMAKE_CXX_FLAGS": "/std:c++latest /ZI",
+        "CMAKE_MOLE_TEST": "ON"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "intelliSenseMode": "windows-msvc-x64",
+          "enableMicrosoftCodeAnalysis": false,
+          "enableClangTidyCodeAnalysis": false
         }
-    ],
-    "buildPresets": [
-        {
-            "name": "debug-build",
-            "configurePreset": "debug",
-            "jobs": 14,
-            "verbose": true
-        },
-        {
-            "name": "release-build",
-            "configurePreset": "release",
-            "jobs": 14,
-            "verbose": true
+      },
+      "hidden": true
+    },
+    {
+      "name": "base-release",
+      "displayName": "x64-Release Base",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/cmake-build-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_STANDARD": "26",
+        "CMAKE_CXX_FLAGS": "/std:c++latest",
+        "CMAKE_MOLE_TEST": "OFF"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "intelliSenseMode": "windows-msvc-x64",
+          "enableMicrosoftCodeAnalysis": false,
+          "enableClangTidyCodeAnalysis": false
         }
-    ]
+      },
+      "hidden": true
+    },
+    {
+      "name": "debug",
+      "inherits": "base-debug",
+      "displayName": "x64-Debug (with UI)",
+      "cacheVariables": {
+        "CMAKE_BUILD_MOLE_UI": "ON"
+      }
+    },
+    {
+      "name": "debug-no-ui",
+      "inherits": "base-debug",
+      "displayName": "x64-Debug (no UI)",
+      "binaryDir": "${sourceDir}/cmake-build-debug-no-ui",
+      "cacheVariables": {
+        "CMAKE_BUILD_MOLE_UI": "OFF"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "base-release",
+      "displayName": "x64-Release (with UI)",
+      "cacheVariables": {
+        "CMAKE_BUILD_MOLE_UI": "ON"
+      }
+    },
+    {
+      "name": "release-no-ui",
+      "inherits": "base-release",
+      "displayName": "x64-Release (no UI)",
+      "binaryDir": "${sourceDir}/cmake-build-release-no-ui",
+      "cacheVariables": {
+        "CMAKE_BUILD_MOLE_UI": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "base-build",
+      "hidden": true,
+      "verbose": true,
+      "jobs": 0
+    },
+    {
+      "name": "debug-build",
+      "inherits": "base-build",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "debug-build-no-ui",
+      "inherits": "base-build",
+      "configurePreset": "debug-no-ui"
+    },
+    {
+      "name": "release-build",
+      "inherits": "base-build",
+      "configurePreset": "release"
+    },
+    {
+      "name": "release-build-no-ui",
+      "inherits": "base-build",
+      "configurePreset": "release-no-ui"
+    }
+  ]
 }
