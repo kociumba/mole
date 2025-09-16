@@ -2,27 +2,31 @@
 #define SERVER_H
 
 #include <common.h>
+#include <nng/nng.h>
+#include <nng/protocol/pair0/pair.h>
 #include <mutex>
 #include <queue>
 
-#include "../commands/commands.h"
+#include "../logging/logger.h"
 #include "../threads/threads.h"
 
-struct ipc_client {
-    HANDLE pipe;
-    bool active;
+struct ipc_server {
+    std::atomic_bool running = false;
+    std::atomic_bool sending = false;
+    nng_socket sock;
+    nng_aio *in_aio, *out_aio;
+    std::mutex in_mutex, out_mutex;
+    std::queue<string> in_bound;
+    std::queue<string> out_bound;
 };
 
-extern bool g_ipc_running;
-extern HANDLE g_ipc_thread;
-extern std::vector<ipc_client> g_ipc_clients;
-extern std::mutex g_ipc_mutex;
+extern ipc_server g_ipc;
 
-bool ipc_start();
-void ipc_kill();
+bool ipc_start(ipc_server* server);
+void ipc_kill(ipc_server* server);
 
-void ipc_broadcast(const string& msg);
+void ipc_broadcast(ipc_server* server, const string& msg);
 
-bool ipc_dequeue_command(string& out);
+bool ipc_dequeue_command(ipc_server* server, string* out);
 
 #endif  // SERVER_H

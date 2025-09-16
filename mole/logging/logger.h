@@ -5,6 +5,7 @@
 #include <mutex>
 #include <queue>
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #include <iostream>
@@ -53,6 +54,5 @@ bool destroy_logger();
 void set_console_style();
 
 bool get_input(string& out);
-void enqueue_ipc_input(const string& line);
 
 #endif  // LOGGER_H

@@ -43,7 +43,15 @@ FetchContent_Declare(
         SYSTEM)
 FetchContent_MakeAvailable(minhook)
 
+FetchContent_Declare(
+        nng
+        GIT_REPOSITORY https://github.com/nanomsg/nng
+        GIT_TAG v1.11
+        SYSTEM)
+FetchContent_MakeAvailable(nng)
+
 add_library(mole MODULE mole/main.cpp
+        mole/main.h
         mole/logging/logger.cpp
         mole/logging/logger.h
         mole/threads/threads.cpp
@@ -63,7 +71,7 @@ add_library(mole MODULE mole/main.cpp
         mole/aggregate/common.h
         mole/ipc/server.h
         mole/ipc/server.cpp)
-target_link_libraries(mole spdlog::spdlog minhook Dbghelp.lib)
+target_link_libraries(mole spdlog::spdlog minhook nng Dbghelp.lib)
 target_include_directories(mole PUBLIC mole/aggregate)
 if (MSVC)
     target_compile_options(mole PUBLIC /EHs-)

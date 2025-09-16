@@ -3,10 +3,10 @@
 struct ipc_sink : spdlog::sinks::sink {
     void log(const spdlog::details::log_msg& msg) override {
         spdlog::memory_buf_t buf;
-        formatter_->format(msg, buf);
+        buf = std::format("[{}] {}", spdlog::level::to_string_view(msg.level), msg.payload);
         string s(buf.data(), buf.size());
         s.push_back('\n');
-        ipc_broadcast(s);
+        ipc_broadcast(&g_ipc, s);
     }
     void flush() override {}
     void set_pattern(const std::string&) override {}
@@ -45,7 +45,7 @@ bool init_logger() {
     spdlog::set_default_logger(logger);
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%^%l%$] %v");
 
-    ipc_start();
+    ipc_start(&g_ipc);
 
     return true;
 }
@@ -59,7 +59,7 @@ bool destroy_logger() {
         return false;
     }
 
-    ipc_kill();
+    ipc_kill(&g_ipc);
 
     spdlog::shutdown();
 
@@ -83,158 +83,67 @@ void set_console_style() {
     }
 }
 
-static std::atomic g_active_source{input_source_t::INPUT_NONE};
-
-static std::queue<string> g_console_queue;
-static std::mutex g_console_mutex;
-static string g_console_partial;
-
-static std::queue<string> g_ipc_queue;
-static std::mutex g_ipc_mutex;
-
-void enqueue_ipc_input(const string& line) {
-    {
-        std::lock_guard lock(g_ipc_mutex);
-        g_ipc_queue.push(line);
-    }
-
-    auto expected = input_source_t::INPUT_NONE;
-    g_active_source.compare_exchange_strong(expected, input_source_t::INPUT_IPC);
-}
-
-static void console_process_events() {
-    if (g_active_source.load(std::memory_order_acquire) == input_source_t::INPUT_IPC) {
-        return;
-    }
-
+static bool console_process_events(string& out) {
     HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+
     if (hIn == INVALID_HANDLE_VALUE) {
-        return;
+        return false;
     }
 
     DWORD numEvents = 0;
+
     if (!GetNumberOfConsoleInputEvents(hIn, &numEvents) || numEvents == 0) {
-        return;
+        return false;
     }
 
-    std::vector<INPUT_RECORD> buffer(numEvents);
+    vector<INPUT_RECORD> buffer(numEvents);
+
     DWORD eventsRead = 0;
+
     if (!ReadConsoleInput(hIn, buffer.data(), numEvents, &eventsRead)) {
-        return;
+        return false;
     }
 
-    for (DWORD i = 0; i < eventsRead; ++i) {
-        auto& [EventType, Event] = buffer[i];
-        if (EventType != KEY_EVENT || !Event.KeyEvent.bKeyDown) continue;
+    static string line;
 
-        char c = Event.KeyEvent.uChar.AsciiChar;
-        WORD vk = Event.KeyEvent.wVirtualKeyCode;
+    for (DWORD i = 0; i < eventsRead; i++) {
+        if (buffer[i].EventType == KEY_EVENT && buffer[i].Event.KeyEvent.bKeyDown) {
+            char c = buffer[i].Event.KeyEvent.uChar.AsciiChar;
 
-        if (g_active_source.load(std::memory_order_acquire) == input_source_t::INPUT_NONE) {
-            bool meaningful =
-                (isprint(static_cast<unsigned char>(c)) || vk == VK_BACK || c == '\r' || c == '\n');
-            if (meaningful) {
-                auto expected = input_source_t::INPUT_NONE;
-                g_active_source.compare_exchange_strong(expected, input_source_t::INPUT_CONSOLE);
-            }
-        }
+            WORD vk = buffer[i].Event.KeyEvent.wVirtualKeyCode;
 
-        if (g_active_source.load(std::memory_order_acquire) != input_source_t::INPUT_CONSOLE) {
-            continue;
-        }
+            if (c == '\r' || c == '\n') {
+                std::cout << std::endl;
 
-        if (c == '\r' || c == '\n') {
-            std::cout << std::endl;
-            string finished = g_console_partial;
-            g_console_partial.clear();
+                out = line;
 
-            {
-                std::lock_guard lock(g_console_mutex);
-                g_console_queue.push(finished);
+                line.clear();
+
+                return true;
             }
 
-            return;
-        }
+            if (vk == VK_BACK && !line.empty()) {
+                line.pop_back();
 
-        if (vk == VK_BACK && !g_console_partial.empty()) {
-            g_console_partial.pop_back();
-            std::cout << "\b \b";
-            std::cout.flush();
-        } else if (isprint(static_cast<unsigned char>(c))) {
-            g_console_partial.push_back(c);
-            std::cout << c;
-            std::cout.flush();
+                std::cout << "\b \b";
+
+                std::cout.flush();
+
+            } else if (isprint(c)) {
+                line.push_back(c);
+
+                std::cout << c;
+
+                std::cout.flush();
+            }
         }
     }
+
+    return false;
 }
 
 bool get_input(string& out) {
-    console_process_events();  // console input has priority
-
-    auto active = g_active_source.load(std::memory_order_acquire);
-
-    if (active == input_source_t::INPUT_CONSOLE) {
-        std::lock_guard lock(g_console_mutex);
-        if (!g_console_queue.empty()) {
-            out = std::move(g_console_queue.front());
-            g_console_queue.pop();
-
-            if (g_console_queue.empty() && g_console_partial.empty()) {
-                g_active_source.store(input_source_t::INPUT_NONE, std::memory_order_release);
-            }
-            return true;
-        }
-
-        return false;
-    }
-
-    if (active == input_source_t::INPUT_IPC) {
-        std::lock_guard lock(g_ipc_mutex);
-        if (!g_ipc_queue.empty()) {
-            out = std::move(g_ipc_queue.front());
-            g_ipc_queue.pop();
-
-            if (g_ipc_queue.empty()) {
-                g_active_source.store(input_source_t::INPUT_NONE, std::memory_order_release);
-            }
-            return true;
-        }
-
-        g_active_source.store(input_source_t::INPUT_NONE, std::memory_order_release);
-        return false;
-    }
-
-    {
-        std::lock_guard lock(g_console_mutex);
-        if (!g_console_queue.empty()) {
-            auto expected = input_source_t::INPUT_NONE;
-            if (g_active_source.compare_exchange_strong(expected, input_source_t::INPUT_CONSOLE)) {
-                out = std::move(g_console_queue.front());
-                g_console_queue.pop();
-                if (g_console_queue.empty() && g_console_partial.empty()) {
-                    g_active_source.store(input_source_t::INPUT_NONE, std::memory_order_release);
-                }
-
-                return true;
-            }
-        }
-    }
-
-    {
-        std::lock_guard lock(g_ipc_mutex);
-        if (!g_ipc_queue.empty()) {
-            auto expected = input_source_t::INPUT_NONE;
-            if (g_active_source.compare_exchange_strong(expected, input_source_t::INPUT_IPC)) {
-                out = std::move(g_ipc_queue.front());
-                g_ipc_queue.pop();
-                if (g_ipc_queue.empty()) {
-                    g_active_source.store(input_source_t::INPUT_NONE, std::memory_order_release);
-                }
-
-                return true;
-            }
-        }
-    }
-
+    if (console_process_events(out)) return true;        // console input has priority
+    if (ipc_dequeue_command(&g_ipc, &out)) return true;  // ipc commands are always full lines
     return false;
 }
