@@ -25,6 +25,10 @@ int main() {
     ImGui::CreateContext();
     io = &ImGui::GetIO();
 
+    ImFontConfig font_cfg;
+    font_cfg.FontDataOwnedByAtlas = false;
+    io->Fonts->AddFontFromMemoryTTF((void*)iosevka_regular, iosevka_regular_length, 18, &font_cfg);
+
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460");
 

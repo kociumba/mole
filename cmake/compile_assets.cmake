@@ -2,7 +2,7 @@
 
 function(_mole_bin2c_parse ARG_OUT)
     set(options "")
-    set(oneValueArgs INPUT_FILE;OUTPUT_FILE;ARRAY_NAME)
+    set(oneValueArgs INPUT_FILE OUTPUT_BASE ARRAY_NAME)
     set(multiValueArgs "")
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" "${ARGN}")
     set(CLI "")
@@ -13,12 +13,12 @@ function(_mole_bin2c_parse ARG_OUT)
         message(SEND_ERROR "Call to _mole_bin2c_parse() must have an INPUT_FILE")
     endif ()
 
-    if (ARG_OUTPUT_FILE)
-        list(APPEND CLI "${ARG_OUTPUT_FILE}")
+    if (ARG_OUTPUT_BASE)
+        list(APPEND CLI "${ARG_OUTPUT_BASE}")
     else ()
-        message(SEND_ERROR "Call to _mole_bin2c_parse() must have an OUTPUT_FILE")
+        message(SEND_ERROR "Call to _mole_bin2c_parse() must have an OUTPUT_BASE")
     endif ()
-    
+
     if (ARG_ARRAY_NAME)
         list(APPEND CLI "${ARG_ARRAY_NAME}")
     else ()
@@ -32,19 +32,31 @@ endfunction()
 
 function(mole_compile_binary_to_header)
     set(options "")
-    set(oneValueArgs INPUT_FILE;OUTPUT_FILE;ARRAY_NAME)
+    set(oneValueArgs INPUT_FILE OUTPUT_BASE ARRAY_NAME)
     set(multiValueArgs "")
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" "${ARGN}")
     _mole_bin2c_parse(
             CLI
             INPUT_FILE ${ARG_INPUT_FILE}
-            OUTPUT_FILE ${ARG_OUTPUT_FILE}
+            OUTPUT_BASE ${ARG_OUTPUT_BASE}
             ARRAY_NAME ${ARG_ARRAY_NAME}
     )
+
+    set(OUTPUT_C "${ARG_OUTPUT_BASE}.c")
+    set(OUTPUT_H "${ARG_OUTPUT_BASE}.h")
+
     add_custom_command(
-            OUTPUT ${ARG_OUTPUT_FILE}
-            COMMAND $<TARGET_FILE:bin2c> ${CLI}
+            OUTPUT ${OUTPUT_C} ${OUTPUT_H}
+            COMMAND bin2c ${CLI}
             MAIN_DEPENDENCY ${ARG_INPUT_FILE}
-            DEPENDS bin2c
+            COMMENT "Converting ${ARG_INPUT_FILE} to C array in ${OUTPUT_C} and ${OUTPUT_H}"
     )
+
+    set_source_files_properties(${OUTPUT_C} ${OUTPUT_H} PROPERTIES
+            GENERATED TRUE
+            SKIP_PRECOMPILE_HEADERS TRUE
+    )
+
+    set(${ARG_ARRAY_NAME}_C ${OUTPUT_C} PARENT_SCOPE)
+    set(${ARG_ARRAY_NAME}_H ${OUTPUT_H} PARENT_SCOPE)
 endfunction()

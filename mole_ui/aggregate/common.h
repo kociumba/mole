@@ -5,6 +5,7 @@
 #include <windows.h>
 
 #include <atomic>
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <mutex>

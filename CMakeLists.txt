@@ -11,7 +11,7 @@ option(CMAKE_MOLE_TEST "Build tests for mole" OFF)
 option(CMAKE_BUILD_MOLE_UI "Build the external interface for mole" ON)
 
 if (CMAKE_MOLE_TEST)
-    set(MOLE_TEST_ENABLED ${MOLE_BUILD_TESTS})
+    set(MOLE_TEST_ENABLED ON)
 else ()
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(MOLE_TEST_ENABLED ON)
@@ -75,7 +75,7 @@ if (CMAKE_BUILD_MOLE_UI)
 endif ()
 
 if (MOLE_TEST_ENABLED)
-    file(GLOB TEST_SOURCES CONFIGURE_DEPENDS " ${CMAKE_SOURCE_DIR}/mole/tests/*.cpp")
+    file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/mole/tests/*.cpp")
 
     foreach (TEST_SRC ${TEST_SOURCES})
         get_filename_component(TEST_NAME ${TEST_SRC} NAME_WE)

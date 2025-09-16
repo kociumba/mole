@@ -43,8 +43,11 @@ target_include_directories(imgui PUBLIC ${imgui_src_SOURCE_DIR} ${imgui_src_SOUR
 
 mole_compile_binary_to_header(
         INPUT_FILE ${CMAKE_SOURCE_DIR}/mole_ui/assets/Iosevka-Regular.ttc
-        OUTPUT_FILE ${CMAKE_BINARY_DIR}/include/generated/fonts/Iosevka-Regular.ttc
+        OUTPUT_BASE ${CMAKE_BINARY_DIR}/include/generated/fonts/Iosevka-Regular
+        ARRAY_NAME iosevka_regular
 )
+
+message("iosevka header is: " ${iosevka_regular_C})
 
 add_executable(mole_ui
         main.cpp
@@ -55,7 +58,10 @@ add_executable(mole_ui
         ui/root.cpp
         ui/root.h
         commands/commands.cpp
-        commands/commands.h)
+        commands/commands.h
+        ${iosevka_regular_C}
+        ${iosevka_regular_H})
+add_dependencies(mole_ui bin2c)
 target_link_libraries(mole_ui PUBLIC imgui)
 target_link_libraries(mole_ui PRIVATE gdi32 opengl32)
 target_include_directories(mole_ui PUBLIC aggregate ${CMAKE_BINARY_DIR}/include/generated/fonts)
