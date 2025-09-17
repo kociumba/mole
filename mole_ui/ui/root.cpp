@@ -388,7 +388,7 @@ void mole_ui_root() {
             send_command(std::string(command_input));
             command_input[0] = '\0';
         } else {
-            add_console_line("ERROR: Not connected to tool");
+            add_console_line("ERROR: Not connected to mole");
         }
     }
 
