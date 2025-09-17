@@ -13,7 +13,7 @@ void input_func(void* arg) {
         auto msg = nng_aio_get_msg(server->in_aio);
 
         std::lock_guard lock(server->in_mutex);
-        server->in_bound.push(string((char*)nng_msg_body(msg), nng_msg_len(msg)));
+        server->in_bound.emplace((char*)nng_msg_body(msg), nng_msg_len(msg));
 
         nng_msg_free(msg);
     } else {

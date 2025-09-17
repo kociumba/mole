@@ -10,5 +10,6 @@
 #include "../main.h"
 
 void mole_ui_root();
+void add_console_line(const string& line);
 
 #endif  // ROOT_H

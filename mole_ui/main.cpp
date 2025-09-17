@@ -32,7 +32,7 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460");
 
-    if (ipc_client_connect(&g_ipc)) {
+    if (ipc_connect(&g_ipc)) {
         initial_connection = true;
     }
 
@@ -56,8 +56,8 @@ int main() {
         glfwSwapBuffers(window);
     }
 
-    if (initial_connection) {
-        ipc_client_disconnect(&g_ipc);
+    if (g_ipc.running) {
+        ipc_disconnect(&g_ipc);
     }
 
     ImGui_ImplOpenGL3_Shutdown();

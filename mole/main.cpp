@@ -43,12 +43,14 @@ void print_leaks(const bool& verbose) {
         );
 
         if (verbose && group.frame_count > 0) {
-            mole_print("stack trace:\n");
             std::stringstream stack_trace;
             for (USHORT i = 0; i < group.frame_count; ++i) {
-                stack_trace << std::format("    #{} {}\n", i, addr_to_symbol(group.stack[i]));
+                stack_trace << std::format(
+                    "    #{} {}{}", i, addr_to_symbol(group.stack[i]),
+                    i < group.frame_count - 1 ? "\n" : ""
+                );
             }
-            mole_print("{}", stack_trace.str());
+            mole_print("stack trace:\n{}", stack_trace.str());
         }
     }
 }

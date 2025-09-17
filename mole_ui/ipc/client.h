@@ -2,22 +2,28 @@
 #define CLIENT_H
 
 #include <common.h>
+#include <nng/nng.h>
+#include <nng/protocol/pair0/pair.h>
+#include <format>
+
+#include <../ui/root.h>
 
 struct ipc_client {
-    HANDLE pipe;
-    std::thread reader;
-    std::atomic<bool> running;
-
-    std::mutex q_mutex;
-    std::queue<string> queue;
+    std::atomic_bool running = false;
+    std::atomic_bool sending = false;
+    nng_socket sock;
+    nng_aio *in_aio, *out_aio;
+    std::mutex in_mutex, out_mutex;
+    std::queue<string> in_bound;
+    std::queue<string> out_bound;
 };
 
 extern ipc_client g_ipc;
 
-bool ipc_client_connect(ipc_client* c, const char* pipe_name = R"(\\.\pipe\mole_ipc)");
-void ipc_client_disconnect(ipc_client* c);
+bool ipc_connect(ipc_client* client);
+void ipc_disconnect(ipc_client* client);
 
-bool ipc_client_send(ipc_client* c, const string& msg);
-bool ipc_client_poll(ipc_client* c, string& out);
+void ipc_send(ipc_client* client, const string& msg);
+bool ipc_dequeue_incoming(ipc_client* client, string* out);
 
 #endif  // CLIENT_H

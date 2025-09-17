@@ -62,7 +62,7 @@ add_executable(mole_ui
         ${iosevka_regular_C}
         ${iosevka_regular_H})
 add_dependencies(mole_ui bin2c)
-target_link_libraries(mole_ui PUBLIC imgui)
+target_link_libraries(mole_ui PUBLIC imgui nng)
 target_link_libraries(mole_ui PRIVATE gdi32 opengl32)
 target_include_directories(mole_ui PUBLIC aggregate ${CMAKE_BINARY_DIR}/include/generated/fonts)
 

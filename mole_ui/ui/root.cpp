@@ -20,7 +20,45 @@ struct MemoryStats {
 
 static MemoryStats current_stats;
 
-static void add_console_line(const string& line) {
+struct ParsedMessage {
+    string full_text;
+    string level;
+    string content;
+    bool has_spdlog_format;
+};
+
+static ParsedMessage parse_spdlog_message(const string& line) {
+    ParsedMessage msg;
+    msg.full_text = line;
+    msg.has_spdlog_format = false;
+    size_t first_bracket = line.find('[');
+    if (first_bracket != string::npos) {
+        size_t second_bracket = line.find(']', first_bracket + 1);
+        if (second_bracket != string::npos) {
+            size_t third_bracket = line.find('[', second_bracket + 1);
+            if (third_bracket != string::npos) {
+                size_t fourth_bracket = line.find(']', third_bracket + 1);
+                if (fourth_bracket != string::npos) {
+                    msg.level = line.substr(third_bracket + 1, fourth_bracket - third_bracket - 1);
+                    msg.content = line.substr(fourth_bracket + 1);
+                    if (!msg.content.empty() && msg.content[0] == ' ') {
+                        msg.content = msg.content.substr(1);
+                    }
+                    msg.has_spdlog_format = true;
+                }
+            }
+        }
+    }
+
+    if (!msg.has_spdlog_format) {
+        msg.content = line;
+        msg.level = "";
+    }
+
+    return msg;
+}
+
+void add_console_line(const string& line) {
     string timestamped_line;
     if (show_timestamps) {
         auto now = std::chrono::system_clock::now();
@@ -52,12 +90,47 @@ static void send_command(const std::string& cmd) {
         }
         history_pos = -1;
 
-        if (ipc_client_send(&g_ipc, cmd)) {
+        if (g_ipc.running) {
+            ipc_send(&g_ipc, cmd);
             add_console_line("> " + cmd);
         } else {
-            add_console_line("ERROR: Failed to send command");
+            add_console_line("ERROR: Not connected - cannot send command");
         }
     }
+}
+
+static ImVec4 get_spdlog_level_color(const string& level) {
+    if (level == "error" || level == "critical") {
+        return ImVec4(1.0f, 0.3f, 0.3f, 1.0f);
+    }
+    if (level == "warning" || level == "warn") {
+        return ImVec4(1.0f, 0.8f, 0.3f, 1.0f);
+    }
+    if (level == "info") {
+        return ImVec4(0.3f, 0.8f, 1.0f, 1.0f);
+    }
+    if (level == "debug") {
+        return ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
+    }
+    if (level == "trace") {
+        return ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+    }
+    if (level == "off" || level.empty()) {
+        return ImVec4(0.9f, 0.9f, 0.9f, 1.0f);
+    }
+    return ImVec4(0.9f, 0.9f, 0.9f, 1.0f);
+}
+
+static bool is_leak_summary_line(const string& content) {
+    return content.find("Leak group:") != string::npos && content.find("thread(") != string::npos &&
+           content.find("caller=") != string::npos;
+}
+
+static bool is_stack_trace_line(const string& content) {
+    if (content.length() < 4) return false;
+    size_t first_non_space = content.find_first_not_of(' ');
+    if (first_non_space == string::npos) return false;
+    return content[first_non_space] == '#' && std::isdigit(content[first_non_space + 1]);
 }
 
 static void parse_stats_response(const std::string& response) {
@@ -83,14 +156,14 @@ static void parse_stats_response(const std::string& response) {
 }
 
 void mole_ui_root() {
-    if (g_ipc.pipe != INVALID_HANDLE_VALUE && g_ipc.running) {
+    if (g_ipc.running) {
         connection_status = "Connected";
     } else {
         connection_status = "Disconnected";
     }
 
     string msg;
-    while (ipc_client_poll(&g_ipc, msg)) {
+    while (ipc_dequeue_incoming(&g_ipc, &msg)) {
         parse_stats_response(msg);
         add_console_line(msg);
     }
@@ -101,22 +174,21 @@ void mole_ui_root() {
                                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
                                   ImGuiWindowFlags_MenuBar;
 
-    ImGui::Begin("Memory Leak Detection Tool", nullptr, main_flags);
+    ImGui::Begin("mole", nullptr, main_flags);
 
-    // Menu bar
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("Connection")) {
             if (ImGui::MenuItem("Connect", nullptr, false, connection_status == "Disconnected")) {
-                if (ipc_client_connect(&g_ipc)) {
-                    add_console_line("Connected to memory leak detection tool");
-                    send_command("status");
+                if (ipc_connect(&g_ipc)) {
+                    add_console_line("Connected to mole");
+                    send_command("help");
                 } else {
-                    add_console_line("ERROR: Failed to connect to tool");
+                    add_console_line("ERROR: Failed to connect to mole");
                 }
             }
             if (ImGui::MenuItem("Disconnect", nullptr, false, connection_status == "Connected")) {
-                ipc_client_disconnect(&g_ipc);
-                add_console_line("Disconnected from tool");
+                ipc_disconnect(&g_ipc);
+                add_console_line("Disconnected from mole");
             }
             ImGui::Separator();
             ImGui::Text("Status: %s", connection_status.c_str());
@@ -133,26 +205,33 @@ void mole_ui_root() {
         }
 
         if (ImGui::BeginMenu("Commands")) {
-            if (ImGui::MenuItem("Get Status", nullptr, false, connection_status == "Connected")) {
-                send_command("status");
+            if (ImGui::MenuItem("Help", "h", false, connection_status == "Connected")) {
+                send_command("help");
             }
-            if (ImGui::MenuItem(
-                    "Start Monitoring", nullptr, false, connection_status == "Connected"
-                )) {
-                send_command("start");
-            }
-            if (ImGui::MenuItem(
-                    "Stop Monitoring", nullptr, false, connection_status == "Connected"
-                )) {
-                send_command("stop");
-            }
-            if (ImGui::MenuItem("Show Leaks", nullptr, false, connection_status == "Connected")) {
+            ImGui::Separator();
+            if (ImGui::MenuItem("Show Leaks", "l", false, connection_status == "Connected")) {
                 send_command("leaks");
             }
             if (ImGui::MenuItem(
-                    "Generate Report", nullptr, false, connection_status == "Connected"
+                    "Show Leaks (Verbose)", "lv", false, connection_status == "Connected"
                 )) {
-                send_command("report");
+                send_command("leaks-v");
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem(
+                    "Toggle Runtime Filter", "fr", false, connection_status == "Connected"
+                )) {
+                send_command("filter-runtime");
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Unload Tool", nullptr, false, connection_status == "Connected")) {
+                send_command("unload");
+            }
+            if (ImGui::MenuItem("Exit Host", "eh", false, connection_status == "Connected")) {
+                send_command("exit-host");
+            }
+            if (ImGui::MenuItem("Terminate Host", "th", false, connection_status == "Connected")) {
+                send_command("terminate-host");
             }
             ImGui::EndMenu();
         }
@@ -225,18 +304,30 @@ void mole_ui_root() {
     ImGui::BeginChild("console", ImVec2(0, -ImGui::GetFrameHeightWithSpacing() * 2), true);
 
     for (const auto& line : console_output) {
-        // Color code different types of messages
-        if (line.find("ERROR") != std::string::npos || line.find("LEAK") != std::string::npos) {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
-        } else if (line.find("WARNING") != std::string::npos) {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.3f, 1.0f));
-        } else if (line.find(">") == line.find_first_not_of(" \t") ||
-                   (show_timestamps && line.find(">") != std::string::npos)) {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 1.0f, 1.0f));  // Command input
+        ParsedMessage parsed = parse_spdlog_message(line);
+        ImVec4 color;
+        if (parsed.has_spdlog_format) {
+            color = get_spdlog_level_color(parsed.level);
+
+            if (parsed.level == "warning" && is_leak_summary_line(parsed.content)) {
+                color = ImVec4(1.0f, 0.6f, 0.3f, 1.0f);
+            } else if (parsed.level == "off" && is_stack_trace_line(parsed.content)) {
+                color = ImVec4(0.7f, 0.7f, 0.9f, 1.0f);
+            }
         } else {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.9f, 0.9f, 1.0f));
+            if (line.find("ERROR") != string::npos || line.find("LEAK") != string::npos) {
+                color = ImVec4(1.0f, 0.3f, 0.3f, 1.0f);
+            } else if (line.find("WARNING") != string::npos) {
+                color = ImVec4(1.0f, 0.8f, 0.3f, 1.0f);
+            } else if (line.find(">") == line.find_first_not_of(" \t") ||
+                       (show_timestamps && line.find(">") != string::npos)) {
+                color = ImVec4(0.6f, 0.6f, 1.0f, 1.0f);
+            } else {
+                color = ImVec4(0.9f, 0.9f, 0.9f, 1.0f);
+            }
         }
 
+        ImGui::PushStyleColor(ImGuiCol_Text, color);
         ImGui::TextUnformatted(line.c_str());
         ImGui::PopStyleColor();
     }

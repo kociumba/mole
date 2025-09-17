@@ -26,7 +26,6 @@ bool ipc_start(ipc_server* server);
 void ipc_kill(ipc_server* server);
 
 void ipc_broadcast(ipc_server* server, const string& msg);
-
 bool ipc_dequeue_command(ipc_server* server, string* out);
 
 #endif  // SERVER_H
